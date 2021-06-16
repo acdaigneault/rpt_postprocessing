@@ -1,32 +1,34 @@
 import numpy as np
+import scipy.optimize as scop
 import pandas as pd
 import matplotlib.pyplot as plt
 
 
 ### Dimensions and parameters ###
 
+###
+L = 0.2
+r = 0.0381
+l = 0.0762
+FP = [0.15, 0, 0.1]
+MP = [0.17, FP[1], FP[2]]
+
 # Reactor dimensions
 R = 0.1
-L = 0.2
+#L = 0.5
 
 
 # Detector dimensions
 #r = L/(2*10)
 #l = 2*r
 
-r = 0.0381
-l = 0.0762
-
-
 # Position of the detector (face
 #FP = [R, 0, L/2]
 #MP = [FP[0]+l/2, FP[1], FP[2]]
 
-FP = [0.15, 0, 0.1]
-MP = [0.17, FP[1], FP[2]]
 
 # Number of points per line (even number)
-nb = 100
+nb = 10
 
 # Distance between particle and face position of the detector
 k = 1.75  # Factor to be applied to radius of reactor (75% + R)
@@ -35,6 +37,7 @@ d = k*R
 
 # Plot initialization
 fig = plt.figure()
+
 ax = fig.add_subplot(1, 3, 1, projection='3d')
 ax1 = fig.add_subplot(1, 3, 2, projection='3d')
 ax2 = fig.add_subplot(1, 3, 3, projection='3d')
@@ -43,26 +46,48 @@ ax2 = fig.add_subplot(1, 3, 3, projection='3d')
 ### Set0 : Constant distance with z = constant ###
 
 # Calculate alpha
-zi = FP[2]
-xi = R*(1-0.5*k**2)
-yi = np.sqrt(d**2 - (xi - R)**2 - (zi - FP[2])**2)
+def sphere_cylinder_zcte(val,FPdR):
+    x = val[0]
+    y = val[1]
 
-alpha = np.arctan(xi/yi)
-alpha0 = np.linspace(-alpha, alpha, nb)
+    FP = FPdR[:3]
+    d = FPdR[3]
+    R = FPdR[4]
 
+    return [(x - FP[0])**2 + (y - FP[1])**2 - d**2,
+            x**2 + y**2 - R**2]
+
+FPdR = FP.copy()
+FPdR.extend([d, R])
+
+[xi, yi] = scop.fsolve(sphere_cylinder_zcte,x0=[d, d], args=FPdR)
+alpha_max = np.arctan(np.abs(yi-FP[1])/np.abs(xi-FP[0]))
+[xi, yi] = scop.fsolve(sphere_cylinder_zcte,x0=[-d, -d], args=FPdR)
+alpha_min = -np.arctan(np.abs(yi-FP[1])/np.abs(xi-FP[0]))
+
+alpha0 = np.linspace(alpha_min, alpha_max, nb)
 
 z0 = FP[2]*np.ones(nb)  # z = z_faceposition
 x0 = FP[0] - d*np.cos(alpha0)
 y0 = d*np.sin(alpha0) + FP[1]
 
 # Plot the line
-distancectezcte = ax.plot(x0, y0, z0,  ".", color="red", label="distance & z = constant")
+ax.plot(x0, y0, z0,  ".", color="red", label="distance & z = constant")
 
 ### Set 1 : Constant distance with y = constant ###
 
-# Calculate alpha (trivial for y = cte)
-alpha = np.pi/2
-alpha1 = np.linspace(-alpha, alpha, nb)
+# Calculate alpha
+alpha_max = np.arccos((FP[0]-R)/d) # Max alpha angle
+z_max_check = d*np.sin(alpha_max) + FP[2]
+if z_max_check > L:  # if alpha reaches higher than top of the reactor
+    alpha_max = np.arcsin((L-FP[2])/d)
+
+alpha_min = -np.arccos((FP[0]-R)/d)
+z_min_check = d*np.sin(alpha_min) + FP[2]
+if z_min_check < 0:  # if alpha reaches lower than bottom of the reactor
+    alpha_min = np.arcsin((-FP[2])/d)
+
+alpha1 = np.linspace(alpha_min, alpha_max, nb)
 
 # Calculate half position because of the +/- sqrt for y
 y1 = FP[1]*np.ones(nb)  # y = y_faceposition (= 0)
@@ -70,22 +95,59 @@ z1 = d*np.sin(alpha1) + FP[2]
 x1 = FP[0] - d*np.cos(alpha1)
 
 # Plot the line
-distancecteycte = ax.plot(x1, y1, z1,  ".", color="blue", label="distance & y = constant")
-
+ax.plot(x1, y1, z1,  ".", color="blue", label="distance & y = constant")
 
 ### Set 2 : Constant distance with 90 degree cross-section of the cylinder ###
 
-# Calulate alpha
-zi = FP[2] - d/2
-yi = zi
-di = np.sqrt(zi**2 + yi**2)
-alpha = np.arccos(d/di)
-alpha2 = np.linspace(-alpha, alpha, nb)
+# Calculate alpha
+def sphere_cylinder_yisz(val,FPdR):
+    x = val[0]
+    y = val[1]
+    z = val[2]
+
+    FP = FPdR[:3]
+    d = FPdR[3]
+    R = FPdR[4]
+
+    return [(x - FP[0])**2 + (y - FP[1])**2 + (z - FP[2])**2 - d**2,
+            x**2 + y**2 - R**2,
+            (z - FP[2]) - (y - FP[1])]
+
+
+[xi, yi, zi] = scop.fsolve(sphere_cylinder_yisz,x0=[FP[0]+d, FP[1]+d, FP[2]+d], args=FPdR)
+
+if zi < 0:
+    zi = 0
+elif zi > L:
+    zi = L
+
+yi = zi + FP[2] + FP[1]
+di = np.sqrt(2)*(zi - FP[2])
+alpha_max = np.arcsin(di/d)
+
+print(xi, yi, zi)
+
+[xi, yi, zi] = scop.fsolve(sphere_cylinder_yisz,x0=[FP[0]-d, FP[1]-d, FP[2]-d], args=FPdR)
+
+
+if zi < 0:
+    zi = 0
+elif zi > L:
+    zi = L
+
+yi = zi + FP[2] + FP[1]
+di = np.sqrt(2)*(zi - FP[2])
+alpha_min = np.arcsin(di/d)
+
+print(xi, yi, zi)
+
+
+alpha2 = np.linspace(alpha_min, alpha_max, nb)
 
 
 # Generate y and z
 z2 = d*np.sin(alpha2)/np.sqrt(2) + FP[2]
-y2 = z2 - FP[2]
+y2 = z2 - FP[2] + FP[1]
 
 # Solve for x position
 a = 1
@@ -93,9 +155,10 @@ b = -2*R
 c = R**2 + y2**2 + (z2 - FP[2])**2 - d**2
 delta = b**2 - 4*a*c
 x2 = (-b - np.sqrt(delta))/(2*a)
+x2 = x2 + (FP[0] - R)
 
 # Plot the line
-distancecte = ax.plot(x2, y2, z2,  ".", color="green", label="distance constant")
+ax.plot(x2, y2, z2,  ".", color="green", label="distance constant")
 
 ax.legend()
 
@@ -122,11 +185,11 @@ def data_for_sphere(center_x,center_y,center_z,radius):
 
 # Mesh generation
 Xc, Yc, Zc = data_for_cylinder(0,0,R,L)
-Yd, Zd, Xd = data_for_cylinder(FP[0],FP[2],r,l)
+Zd, Yd, Xd = data_for_cylinder(FP[2],FP[1],r,l)
 Xs, Ys, Zs = data_for_sphere(FP[0],FP[1],FP[2],d)
 
 reactor = ax.plot_surface(Xc, Yc, Zc, alpha=0.3, color="grey", label="Reactor")
-detector = ax.plot_surface(Xd+R, Yd-R, Zd, alpha=0.3, color="blue", label="Detector")
+detector = ax.plot_surface(Xd+FP[0], Yd, Zd, alpha=0.3, color="blue", label="Detector")
 sphere = ax.plot_surface(Xs, Ys, Zs, alpha=0.05, color="coral", label="Constant distance")
 
 
@@ -140,6 +203,7 @@ ax.set_title("Positions with constant distance")
 ax.set_xlabel("x")
 ax.set_ylabel("y")
 ax.set_zlabel("z")
+
 
 
 ### Set 3 : Constant angles & z ###
@@ -171,7 +235,7 @@ for i in range(0,nb):
 x3 = positions[:,0]
 y3 = positions[:,1]
 z3 = positions[:,2]
-angleszcte = ax1.plot(x3, y3, z3,  ".", color="red", label="angles & z = constant")
+ax1.plot(x3, y3, z3,  ".", color="red", label="angles & z = constant")
 
 
 ### Set 4 : Constant angles  ###
@@ -203,7 +267,7 @@ for i in range(0,nb):
 x4 = positions[:,0]
 y4 = positions[:,1]
 z4 = positions[:,2]
-anglescte = ax1.plot(x4, y4, z4,  ".", color="blue", label="angles = constant")
+ax1.plot(x4, y4, z4,  ".", color="blue", label="angles = constant")
 
 
 ### Set 9 : Constant angles  ###
@@ -235,7 +299,7 @@ for i in range(0,nb):
 x9 = positions[:,0]
 y9 = positions[:,1]
 z9 = positions[:,2]
-anglescte = ax1.plot(x9, y9, z9,  ".", color="black", label="angles = constant but random")
+ax1.plot(x9, y9, z9,  ".", color="black", label="angles = constant but random")
 
 
 ax1.legend()
@@ -245,7 +309,7 @@ Xc, Yc, Zc = data_for_cylinder(0,0,R,L)
 Yd, Zd, Xd = data_for_cylinder(FP[0],FP[2],r,l)
 
 reactor = ax1.plot_surface(Xc, Yc, Zc, alpha=0.3, color="grey", label="Reactor")
-detector = ax1.plot_surface(Xd+R, Yd-R, Zd, alpha=0.3, color="blue", label="Detector")
+detector = ax1.plot_surface(Xd+FP[0], Yd, Zd, alpha=0.3, color="blue", label="Detector")
 
 
 ### Plotting ###
@@ -305,7 +369,7 @@ Xc, Yc, Zc = data_for_cylinder(0,0,R,L)
 Yd, Zd, Xd = data_for_cylinder(FP[0],FP[2],r,l)
 
 reactor = ax2.plot_surface(Xc, Yc, Zc, alpha=0.3, color="grey", label="Reactor")
-detector = ax2.plot_surface(Xd+R, Yd-R, Zd, alpha=0.3, color="blue", label="Detector")
+detector = ax2.plot_surface(Xd+FP[0], Yd, Zd, alpha=0.3, color="blue", label="Detector")
 
 # Equal axis for 3d plots
 world_limits = ax2.get_w_lims()
@@ -327,5 +391,6 @@ data["z_position"] = np.concatenate((z0, z1, z2, z3, z4, z9, z5, z6, z7, z8), ax
 data["angle_distance"] = np.concatenate((alpha0, alpha1, alpha2, distance3, distance4, distance9, distance5, distance6, distance7, distance8), axis=None)
 
 
-path_export_data = "C:/Users/Acdai/OneDrive - polymtl.ca/Polytechnique/Session E2021/GCH8392 - Projet individuel de génie chimique/Data/positions/"
-data.to_csv(path_export_data + "set1.csv", index=False)
+path_export_data = "/mnt/DATA/rpt_postprocessing/positions"
+#path_export_data = "C:/Users/Acdai/OneDrive - polymtl.ca/Polytechnique/Session E2021/GCH8392 - Projet individuel de génie chimique/Data/positions/"
+data.to_csv(path_export_data + "positions.csv", index=False)
