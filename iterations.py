@@ -6,7 +6,7 @@ import numpy as np
 path_data = "C:/Users/Acdai/OneDrive - polymtl.ca/Polytechnique/Session E2021/GCH8392 - Projet individuel de génie chimique/Data/positions/"
 it_file = "/positions_it.csv"
 
-data = pd.read_csv(path_data + it_file, sep=";")
+data = pd.read_csv(path_data + it_file, sep=",")
 
 positions = [np.array([])]
 skip_line = 0  # skip line
@@ -67,7 +67,7 @@ for i in range(n_data_set):
 
 # Get counts data for all iterations
 counts = np.array([data["counts it = 1000"], data["counts it = 10000"],
-                  data["counts it = 100000"], data["counts it = 1000000"]])
+                  data["counts it = 100000"], data["counts it = 1000000"],  data["counts it = 10000000"]])
 
 fig, ax = plt.subplots()
 
