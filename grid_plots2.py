@@ -2,16 +2,37 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.patches as patches
+from matplotlib.cm import ScalarMappable
+from matplotlib.collections import PolyCollection
+from mpl_toolkits.mplot3d import Axes3D
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
+plt.rcParams.update({
+    "text.usetex": True,
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Helvetica"]})
+plt.rcParams.update({
+    "text.usetex": True,
+    "font.family": "serif",
+    "font.serif": ["Computer Modern Roman"],
+})
 
 # Extract data
-#path_data = "C:/Users/Acdai/OneDrive - polymtl.ca/Polytechnique/Session E2021/GCH8392 - Projet individuel de génie chimique/Data/nomad/"
-from matplotlib.cm import ScalarMappable
-
 path_data = "/mnt/DATA/rpt_postprocessing/"
 filename = "grid_positions.csv"
+#filename = "grid_counts.csv"
 data_file = pd.read_csv(path_data + filename, sep=",")
+
+#############
 data_type = "relative"
+
+global save_path
+save_path = "/home/audrey/image_presentation/nomad/costfunc1it_"
+image_format = ".png"
+
+#column_names = ["counts_it10000", "counts_it100000", "counts_it1000000"]
+#column_names = ["counts_it1000000", "nomad_run1"]
+column_names = ["nomad_run2", "nomad_run6"]
 
 # Reactor dimensions
 L = 0.3 # m
@@ -25,24 +46,32 @@ l = 0.0762 # m
 FP = [0.2, 0, 0.075]
 MP = [FP[0] + l/2, FP[1], FP[2]]
 
-# Detector curve
+# Sizes for scatter
 global sizes
-#sizes = [1000, 600, 300, 100]
-sizes = [800, 250]
+
+if len(column_names) == 1:
+    sizes = [900]
+elif len(column_names) == 2:
+    sizes = [800, 300]
+elif len(column_names) == 3:
+    sizes = [900, 500, 200]
+elif len(column_names) == 4:
+    sizes = [1000, 600, 300, 100]
+
 
 # Error functions
 def calculate_relative_error(calculated, measured):
-    return np.fabs(calculated - measured)/measured
+    return np.fabs(calculated - measured)/measured*100
 
 def calculate_absolute_error(calculated, measured):
     return np.fabs(calculated - measured)
 
 # Function for plotting
-def plotting_yz(data_list, save_name, X, Y): #(data_list, marker_size_list, detector, save_name, color, X, Y):
+def plotting(data_list, save_name, X, Y, color, code, plan, title):
     fig, ax = plt.subplots()
 
     zs = np.concatenate(data_list, axis=0)
-    cmap = plt.get_cmap("Reds")
+    cmap = plt.get_cmap(color)
     norm = plt.Normalize(zs.min(), zs.max())
 
     for data, size in zip(data_list, sizes):
@@ -50,87 +79,65 @@ def plotting_yz(data_list, save_name, X, Y): #(data_list, marker_size_list, dete
             ax.scatter(x, y, c=[cmap(norm(i))], s=size, linewidths=0.25, edgecolors="black")
 
     sm = ScalarMappable(norm=norm, cmap=cmap)
-    fig.colorbar(sm, ax=ax)
-    detector_yz = patches.Circle((FP[1], FP[2]), r, linestyle="--", linewidth=1, edgecolor='k', facecolor='none')
-    ax.add_patch(detector_yz)
-    # ax.set_title("Décomptes pour plusieurs nombre itérations de Monte-Carlo à x = 0.")
-    ax.set_xlabel("Position en y (m)")
-    ax.set_ylabel("Position en z (m)")
-    ax.set_xlim(-R, R) # y ou z
-    ax.set_ylim(0, L) # y ou x
+    cb = fig.colorbar(sm, ax=ax)
+    if code == 1:
+        cb.ax.set_title(r'$\%$')
+
+    if plan == "yz":
+        detector_yz = patches.Circle((FP[1], FP[2]), r, linestyle="--", linewidth=1, edgecolor='k', facecolor='none')
+        ax.add_patch(detector_yz)
+        ax.set_xlabel("Position en y (m)")
+        ax.set_ylabel("Position en z (m)")
+        ax.set_xlim(-R, R)
+        ax.set_ylim(0, L)
+        fig.set_size_inches(8, 5.333)
+    elif plan == "xz":
+        detector_1d_side = plt.vlines(R, FP[2] - r, FP[2] + r, linestyle="--", linewidth=2, color="black")
+        ax.set_xlabel("Position en x (m)")
+        ax.set_ylabel("Position en z (m)")
+        ax.set_xlim(-R, R)
+        ax.set_ylim(0, L)
+        fig.set_size_inches(8, 5.333)
+    elif plan == "xy":
+        detector_1d_top = plt.vlines(R, FP[1] - r, FP[1] + r, linestyle="--", linewidth=2, color="black")
+        reactor = patches.Circle((0, 0), R, linestyle="-", linewidth=1, edgecolor='k', facecolor='none')
+        ax.add_patch(reactor)
+        ax.set_xlabel("Position en x (m)")
+        ax.set_ylabel("Position en y (m)")
+        ax.set_xlim(-R, R)
+        ax.set_ylim(-R, R)
+        fig.set_size_inches(7, 7)
+
+    if title != 0:
+        ax.set_title(title)
+
     ax.set_aspect("equal", "box")
-    fig.set_size_inches(9, 6)
-    #fig.savefig("/home/audrey/zpicture_presentation/" + save_name + ".png")
-    plt.show()
+    fig.savefig(save_path + save_name + image_format, dpi=200)
     plt.close(fig)
     ax.clear()
-
-
-def plotting_xz(data_list, save_name, X, Y):  # (data_list, marker_size_list, detector, save_name, color, X, Y):
-    fig, ax = plt.subplots()
-
-    zs = np.concatenate(data_list, axis=0)
-    cmap = plt.get_cmap("Blues")
-    norm = plt.Normalize(zs.min(), zs.max())
-
-    for data, size in zip(data_list, sizes):
-        for i, x, y in zip(data, X, Y):
-            ax.scatter(x, y, c=[cmap(norm(i))], s=size, linewidths=0.25, edgecolors="black")
-
-    sm = ScalarMappable(norm=norm, cmap=cmap)
-    fig.colorbar(sm, ax=ax)
-
-    detector_1d_side = plt.vlines(R, FP[2] - r, FP[2] + r, linestyle="--", linewidth=2, color="black")
-    # ax.set_title("Décomptes pour plusieurs nombre itérations de Monte-Carlo à x = 0.")
-    ax.set_xlabel("Position en x (m)")
-    ax.set_ylabel("Position en z (m)")
-    ax.set_xlim(-R, R)
-    ax.set_ylim(0, L)
-    ax.set_aspect("equal", "box")
-    fig.set_size_inches(9, 6)
-    # fig.savefig("/home/audrey/zpicture_presentation/" + save_name + ".png")
     plt.show()
-    plt.close(fig)
-    ax.clear()
 
-def plotting_xy(data_list, save_name, X, Y):  # (data_list, marker_size_list, detector, save_name, color, X, Y):
-    fig, ax = plt.subplots()
+def plotting_yz(data_list, save_name, X, Y, title, code=0): #(data_list, marker_size_list, detector, save_name, color, X, Y):
+    color = "Reds"
+    plan = "yz"
+    plotting(data_list, save_name, X, Y, color, code, plan, title)
 
-    zs = np.concatenate(data_list, axis=0)
-    cmap = plt.get_cmap("Greens")
-    norm = plt.Normalize(zs.min(), zs.max())
 
-    for data, size in zip(data_list, sizes):
-        for i, x, y in zip(data, X, Y):
-            ax.scatter(x, y, c=[cmap(norm(i))], s=size, linewidths=0.25, edgecolors="black")
+def plotting_xz(data_list, save_name, X, Y, title, code=0):  # (data_list, marker_size_list, detector, save_name, color, X, Y):
+    color = "Blues"
+    plan = "xz"
+    plotting(data_list, save_name, X, Y, color, code, plan, title)
 
-    sm = ScalarMappable(norm=norm, cmap=cmap)
-    fig.colorbar(sm, ax=ax)
-    detector_1d_top = plt.vlines(R, FP[1] - r, FP[1] + r, linestyle="--", linewidth=2, color="black")
-    reactor = patches.Circle((0, 0), R, linestyle="-", linewidth=1, edgecolor='k', facecolor='none')
-    ax.add_patch(reactor)
-    # ax.set_title("Décomptes pour plusieurs nombre itérations de Monte-Carlo à x = 0.")
-    ax.set_xlabel("Position en x (m)")
-    ax.set_ylabel("Position en y (m)")
-    ax.set_xlim(-R, R)
-    ax.set_ylim(-R, R)
-    ax.set_aspect("equal", "box")
-    fig.set_size_inches(9, 6)
-    # fig.savefig("/home/audrey/zpicture_presentation/" + save_name + ".png")
-    plt.show()
-    plt.close(fig)
-    ax.clear()
+def plotting_xy(data_list, save_name,  X, Y, title, code=0):  # (data_list, marker_size_list, detector, save_name, color, X, Y):
+    color = "Greens"
+    plan = "xy"
+    plotting(data_list, save_name, X, Y, color, code, plan, title)
 
 
 plans = ["yz", "xz", "xy"]
 constant_axes = ["x", "y", "z"]
 constant_values = [0, 0, 0.0909091]
 data_grid = [pd.DataFrame(columns=data_file.columns)] * len(constant_axes)
-#iterations = ["10000", "100000", "1000000", "10000000"]
-iterations = ["10000", "100000"]
-
-
-
 
 for ax, cte_value, i_grid in zip(constant_axes, constant_values, [0, 1, 2]):
     # Search positions with that constant value
@@ -145,32 +152,71 @@ for ax, cte_value, i_grid in zip(constant_axes, constant_values, [0, 1, 2]):
     data_grid[i_grid] = data_file.loc[index_list, :].copy()
     counts_max_it = data_grid[i_grid]["counts_it10000000"]
     data = []
-    for it in iterations:
+    for column_name in column_names:
         if data_type == "relative":
-            counts = data_grid[i_grid]["noisy_counts_it" + it]
+            counts = data_grid[i_grid][column_name]
             error = calculate_relative_error(counts, counts_max_it)
             data.append(error)
+            percentage = 1
         elif data_type == "absolute":
-            counts = data_grid[i_grid]["noisy_counts_it" + it]
+            counts = data_grid[i_grid][column_name]
             error = calculate_absolute_error(counts, counts_max_it)
             data.append(error)
+            percentage = 0
         else:
-            counts = data_grid[i_grid]["noisy_counts_it" + it]
+            counts = data_grid[i_grid][column_name]
             data.append(counts)
+            percentage = 0
 
     save_name = data_type + "_" + plans[i_grid]
+    title = 0
+
 
     X = data_grid[i_grid]["particle_positions_" + plans[i_grid][0]]
     Y = data_grid[i_grid]["particle_positions_" + plans[i_grid][1]]
     if plans[i_grid] == "yz":
-        plotting_yz(data, save_name, X, Y)
+        plotting_yz(data, save_name, X, Y, title, percentage)
     elif plans[i_grid] == "xz":
-        plotting_xz(data, save_name, X, Y)
+        plotting_xz(data, save_name, X, Y, title, percentage)
     else:
-        plotting_xy(data, save_name, X, Y)
+        plotting_xy(data, save_name, X, Y, title, percentage)
 
+"""# Positions in reactor
 fig3d = plt.figure()
-geo = plt.axes(projection="3d")
+geo =fig3d.add_subplot(projection="3d")
+
+x = [-R,R,R,-R]
+y = [0,0,0,0]
+z = [0,0,L,L]
+blue = [list(zip(x,y,z))]
+rect = Poly3DCollection(blue, alpha=0.3, color="blue")
+geo.add_collection3d(rect)
+
+y = [-R,R,R,-R]
+x = [0,0,0,0]
+z = [0,0,L,L]
+red = [list(zip(x,y,z))]
+rect = Poly3DCollection(red, alpha=0.3, color="red")
+geo.add_collection3d(rect)
+
+theta = np.linspace(0, 2*np.pi, 100)
+y = R*np.cos(theta)
+x = R*np.sin(theta)
+z = 0.0909091*np.ones(100)
+green = [list(zip(x,y,z))]
+circle = Poly3DCollection(green, alpha=0.3, color="green")
+geo.add_collection3d(circle)
+
+theta = np.linspace(0, 2*np.pi, 100)
+y = R*np.cos(theta)
+x = R*np.sin(theta)
+z = 0.067272727272727*np.ones(100)
+green = [list(zip(x,y,z))]
+circle = Poly3DCollection(green, alpha=0.3, color="green")
+geo.add_collection3d(circle)
+
+
+
 
 def data_for_cylinder(center_x,center_y,radius,height_z):
     z = np.linspace(0, height_z, 50)
@@ -191,8 +237,14 @@ for i_grid, color in enumerate(["red", "blue", "green"]):
                      data_grid[i_grid]["particle_positions_z"], ".", markersize=10, color=color)
 
 
+geo.set_xlim(-R,FP[0]+l)
+geo.set_ylim(-R,R)
+geo.set_zlim(0,L)
+geo.set_xlabel("Position en x (m)")
+geo.set_ylabel("Position en y (m)")
+geo.set_zlabel("Position en z (m)")
 world_limits = geo.get_w_lims()
 geo.set_box_aspect((world_limits[1]-world_limits[0],world_limits[3]-world_limits[2],world_limits[5]-world_limits[4]))
 
 plt.show()
-
+"""

@@ -3,6 +3,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.patches as patches
 
+plt.rcParams.update({
+    "text.usetex": True,
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Helvetica"]})
+# for Palatino and other serif fonts use:
+plt.rcParams.update({
+    "text.usetex": True,
+    "font.family": "serif",
+    "font.serif": ["Computer Modern Roman"],
+})
+
 
 # Extract data
 #path_data = "C:/Users/Acdai/OneDrive - polymtl.ca/Polytechnique/Session E2021/GCH8392 - Projet individuel de génie chimique/Data/nomad/"
@@ -33,7 +44,7 @@ reactor = patches.Circle((0 ,0), R, linestyle="-", linewidth=1, edgecolor='k', f
 
 # Error functions
 def calculate_relative_error(calculated, measured):
-    return np.fabs(calculated - measured)/measured
+    return np.fabs(calculated - measured)/measured*100
 
 def calculate_absolute_error(calculated, measured):
     return np.fabs(calculated - measured)
@@ -90,7 +101,7 @@ def plotting_xz(data_list, save_name, X, Y):  # (data_list, marker_size_list, de
     ax.set_xlim(-R, R)
     ax.set_ylim(0, L)
     ax.set_aspect("equal", "box")
-    fig.set_size_inches(9, 6)
+    fig.set_size_inches(8, 5.3333)
     # fig.savefig("/home/audrey/zpicture_presentation/" + save_name + ".png")
     plt.show()
     plt.close(fig)
@@ -119,7 +130,7 @@ def plotting_xy(data_list, save_name, X, Y):  # (data_list, marker_size_list, de
     ax.set_xlim(-R, R)
     ax.set_ylim(-R, R)
     ax.set_aspect("equal", "box")
-    fig.set_size_inches(9, 6)
+    fig.set_size_inches(6,6)
     # fig.savefig("/home/audrey/zpicture_presentation/" + save_name + ".png")
     plt.show()
     plt.close(fig)
