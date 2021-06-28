@@ -3,10 +3,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.patches as patches
 from matplotlib.cm import ScalarMappable
-from matplotlib.collections import PolyCollection
-from mpl_toolkits.mplot3d import Axes3D
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
+
+# Set LaTex font
 plt.rcParams.update({
     "text.usetex": True,
     "font.family": "sans-serif",
@@ -23,16 +22,18 @@ filename = "grid_positions.csv"
 #filename = "grid_counts.csv"
 data_file = pd.read_csv(path_data + filename, sep=",")
 
-#############
+# Error type or counts
 data_type = "relative"
 
+# Path to save figures and format
 global save_path
 save_path = "/home/audrey/image_presentation/nomad/costfunc1it_"
 image_format = ".png"
 
+# Names of the columns
 #column_names = ["counts_it10000", "counts_it100000", "counts_it1000000"]
 #column_names = ["counts_it1000000", "nomad_run1"]
-column_names = ["nomad_run2", "nomad_run6"]
+column_names = ["nomad_run3", "nomad_run5"]
 
 # Reactor dimensions
 L = 0.3 # m
@@ -46,7 +47,20 @@ l = 0.0762 # m
 FP = [0.2, 0, 0.075]
 MP = [FP[0] + l/2, FP[1], FP[2]]
 
-# Sizes for scatter
+# Grids information
+plans = ["yz", "xz", "xy"] # plans to plot
+constant_axes = ["x", "y", "z"]
+constant_values = [0, 0, 0.0909091] # Constant value position
+data_grid = [pd.DataFrame(columns=data_file.columns)] * len(constant_axes)
+reference_data = "counts_it10000000" # data to evaluate error
+
+
+
+
+
+
+
+# Sizes for scatter (only for 1 to 4 columns max)
 global sizes
 
 if len(column_names) == 1:
@@ -57,7 +71,6 @@ elif len(column_names) == 3:
     sizes = [900, 500, 200]
 elif len(column_names) == 4:
     sizes = [1000, 600, 300, 100]
-
 
 # Error functions
 def calculate_relative_error(calculated, measured):
@@ -70,6 +83,7 @@ def calculate_absolute_error(calculated, measured):
 def plotting(data_list, save_name, X, Y, color, code, plan, title):
     fig, ax = plt.subplots()
 
+    # Allow to scale the color bar to all data in plot
     zs = np.concatenate(data_list, axis=0)
     cmap = plt.get_cmap(color)
     norm = plt.Normalize(zs.min(), zs.max())
@@ -80,9 +94,12 @@ def plotting(data_list, save_name, X, Y, color, code, plan, title):
 
     sm = ScalarMappable(norm=norm, cmap=cmap)
     cb = fig.colorbar(sm, ax=ax)
+
+    # If Error in %, add % sign to the color bar
     if code == 1:
         cb.ax.set_title(r'$\%$')
 
+    # Show the detector face prior plan
     if plan == "yz":
         detector_yz = patches.Circle((FP[1], FP[2]), r, linestyle="--", linewidth=1, edgecolor='k', facecolor='none')
         ax.add_patch(detector_yz)
@@ -108,36 +125,34 @@ def plotting(data_list, save_name, X, Y, color, code, plan, title):
         ax.set_ylim(-R, R)
         fig.set_size_inches(7, 7)
 
+    # If there's title
     if title != 0:
         ax.set_title(title)
 
+    # Set the equal scale and save figure
     ax.set_aspect("equal", "box")
     fig.savefig(save_path + save_name + image_format, dpi=200)
     plt.close(fig)
     ax.clear()
     plt.show()
 
-def plotting_yz(data_list, save_name, X, Y, title, code=0): #(data_list, marker_size_list, detector, save_name, color, X, Y):
+def plotting_yz(data_list, save_name, X, Y, title, code=0):
     color = "Reds"
     plan = "yz"
     plotting(data_list, save_name, X, Y, color, code, plan, title)
 
 
-def plotting_xz(data_list, save_name, X, Y, title, code=0):  # (data_list, marker_size_list, detector, save_name, color, X, Y):
+def plotting_xz(data_list, save_name, X, Y, title, code=0):  #
     color = "Blues"
     plan = "xz"
     plotting(data_list, save_name, X, Y, color, code, plan, title)
 
-def plotting_xy(data_list, save_name,  X, Y, title, code=0):  # (data_list, marker_size_list, detector, save_name, color, X, Y):
+def plotting_xy(data_list, save_name,  X, Y, title, code=0):
     color = "Greens"
     plan = "xy"
     plotting(data_list, save_name, X, Y, color, code, plan, title)
 
 
-plans = ["yz", "xz", "xy"]
-constant_axes = ["x", "y", "z"]
-constant_values = [0, 0, 0.0909091]
-data_grid = [pd.DataFrame(columns=data_file.columns)] * len(constant_axes)
 
 for ax, cte_value, i_grid in zip(constant_axes, constant_values, [0, 1, 2]):
     # Search positions with that constant value
@@ -146,11 +161,11 @@ for ax, cte_value, i_grid in zip(constant_axes, constant_values, [0, 1, 2]):
         if np.isclose(value, cte_value):
             index_list.append(index)
 
-        if ax == "z" and np.isclose(value, 0.067272727272727):
+        if ax == "z" and np.isclose(value, 0.067272727272727): # Extra z = cte
             index_list.append(index)
 
     data_grid[i_grid] = data_file.loc[index_list, :].copy()
-    counts_max_it = data_grid[i_grid]["counts_it10000000"]
+    counts_max_it = data_grid[i_grid][reference_data]
     data = []
     for column_name in column_names:
         if data_type == "relative":

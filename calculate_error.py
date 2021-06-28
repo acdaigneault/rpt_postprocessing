@@ -25,7 +25,7 @@ filename = "grid_positions.csv"
 data = pd.read_csv(path_data + filename, sep=",")
 #iterations = ["1000", "10000", "100000", "1000000"]
 #iterations = ["4", "5"]
-iterations = ["nomad_run2", "nomad_run3", "nomad_run5", "nomad_run6"]
+iterations = ["nomad_run2", "nomad_run3", "nomad_run4", "nomad_run5", "nomad_run6"]
 #n_runs = ["", "1", "2"]
 n_runs = [""]
 
@@ -70,26 +70,29 @@ for nb in iterations:
     min_vector = np.append(min_vector, min)
     max = np.max(max)
     max_vector = np.append(max_vector, max)
-    print(f"{nb} itérations : max = {max}, min = {min}, moyenne = {mean}, écart-type = {sd}, 95% IDC = {1.96*sd}")
+    print(f"{nb} itérations :  moyenne = {mean}, écart-type = {sd}, 95% IDC = {1.96*sd}, max = {max},")
 
 #plt.hist(error_data["relative_error_it1000000"],15)
 fig, ax = plt.subplots()
-it = [0.975*10000, 1.025*10000, 0.975*100000, 1.025*100000]
-ax.semilogx(np.take(it,[0,2]), np.take(mean_vector,[0,2]), '.', label="Erreur relative moyenne", color="black")
+it = [0.975*10000, 1.025*10000, 1.025*100000, 0.975*100000]
+ax.semilogx(np.take(it,[0,3]), np.take(mean_vector,[0,3]), '.', label=r"Erreur relative moyenne $f_{1}$", color="black")
+ax.semilogx(np.take(it,[1,2]), np.take(mean_vector,[1,2]), '.', label=r"Erreur relative moyenne $f_{2}$", color="tab:blue")
 #ax.loglog(it, min_vector,'.', label="Erreur relative minimale", color="tab:green")
-ax.semilogx(it, max_vector,'.', label="Erreur relative maximale", color="tab:blue")
+ax.semilogx(np.take(it,[0,3]), np.take(max_vector,[0,3]),'.', label=r"Erreur relative maximale $f_{1}$", color="grey")
+ax.semilogx(np.take(it,[1,2]), np.take(max_vector,[1,2]),'.', label=r"Erreur relative maximale $f_{2}$", color="skyblue")
 #ax.set_title("Erreur relative des résultats de décomptes avec les positions bruitées")
 ax.set_xlabel("Nombre d'itérations de Monte-Carlo")
 ax.set_ylabel(r"Erreur relative (\%)")
 fig.set_size_inches(6, 4)
 plotline, capline, barlinecol = ax.errorbar(it, mean_vector, yerr=1.96*sd_vector, capsize=0, ls="None", color="black", lolims=True, label=r"Intervalle de confiance de 95\%")
 capline[0].set_marker("_")
-ax.legend()
+ax.legend(loc="upper center")
+plt.grid(color="grey", ls="--", linewidth="0.5", which="both")
 
 #fig2, ax2 = plt.subplots()
 #bleh = np.array(error_data["relative_error_it100000"]), np.array(error_data["relative_error_it1000001"]), np.array(error_data["relative_error_it1000002"])
 #ax2.hist(bleh, 15)
 
-#fig.savefig("/home/audrey/image_presentation/error/error_tune_idc" + ".png", dpi=200)
+#fig.savefig("/home/audrey/image_presentation/error/error_tune_idc_f12" + ".png", dpi=200)
 
 plt.show()
