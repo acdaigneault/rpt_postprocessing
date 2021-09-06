@@ -3,7 +3,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.patches as patches
 from matplotlib.cm import ScalarMappable
-
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 # Set LaTex font
 plt.rcParams.update({
@@ -27,13 +28,13 @@ data_type = "relative"
 
 # Path to save figures and format
 global save_path
-save_path = "/home/audrey/image_presentation/nomad/costfunc1it_"
+save_path = "/home/audrey/image_presentation/cost_func100000_"
 image_format = ".png"
 
 # Names of the columns
 #column_names = ["counts_it10000", "counts_it100000", "counts_it1000000"]
 #column_names = ["counts_it1000000", "nomad_run1"]
-column_names = ["nomad_run3", "nomad_run5"]
+column_names = ["nomad_run5"]
 
 # Reactor dimensions
 L = 0.3 # m
@@ -49,14 +50,12 @@ MP = [FP[0] + l/2, FP[1], FP[2]]
 
 # Grids information
 plans = ["yz", "xz", "xy"] # plans to plot
+plans = ["yz"]
 constant_axes = ["x", "y", "z"]
+constant_axes = ["x"]
 constant_values = [0, 0, 0.0909091] # Constant value position
 data_grid = [pd.DataFrame(columns=data_file.columns)] * len(constant_axes)
 reference_data = "counts_it10000000" # data to evaluate error
-
-
-
-
 
 
 
@@ -93,11 +92,7 @@ def plotting(data_list, save_name, X, Y, color, code, plan, title):
             ax.scatter(x, y, c=[cmap(norm(i))], s=size, linewidths=0.25, edgecolors="black")
 
     sm = ScalarMappable(norm=norm, cmap=cmap)
-    cb = fig.colorbar(sm, ax=ax)
-
-    # If Error in %, add % sign to the color bar
-    if code == 1:
-        cb.ax.set_title(r'$\%$')
+    divider = make_axes_locatable(ax)
 
     # Show the detector face prior plan
     if plan == "yz":
@@ -107,14 +102,18 @@ def plotting(data_list, save_name, X, Y, color, code, plan, title):
         ax.set_ylabel("Position en z (m)")
         ax.set_xlim(-R, R)
         ax.set_ylim(0, L)
-        fig.set_size_inches(8, 5.333)
+        fig.set_size_inches(4.5, 5.5)
+        cax = divider.append_axes("right", size="9%", pad=0.05)
+
     elif plan == "xz":
         detector_1d_side = plt.vlines(R, FP[2] - r, FP[2] + r, linestyle="--", linewidth=2, color="black")
         ax.set_xlabel("Position en x (m)")
         ax.set_ylabel("Position en z (m)")
         ax.set_xlim(-R, R)
         ax.set_ylim(0, L)
-        fig.set_size_inches(8, 5.333)
+        fig.set_size_inches(4.5, 5.5)
+        cax = divider.append_axes("right", size="9%", pad=0.05)
+
     elif plan == "xy":
         detector_1d_top = plt.vlines(R, FP[1] - r, FP[1] + r, linestyle="--", linewidth=2, color="black")
         reactor = patches.Circle((0, 0), R, linestyle="-", linewidth=1, edgecolor='k', facecolor='none')
@@ -123,17 +122,26 @@ def plotting(data_list, save_name, X, Y, color, code, plan, title):
         ax.set_ylabel("Position en y (m)")
         ax.set_xlim(-R, R)
         ax.set_ylim(-R, R)
-        fig.set_size_inches(7, 7)
+        fig.set_size_inches(6, 5.5)
+        cax = divider.append_axes("right", size="6.5%", pad=0.05)
 
     # If there's title
     if title != 0:
         ax.set_title(title)
 
+    cb = fig.colorbar(sm, ax=ax, cax=cax)
+
+    # If Error in %, add % sign to the color bar
+    if code == "percentage":
+        cb.ax.set_title(r'$\%$')
+    elif code == "counts":
+        cb.ax.set_title("Nombre de photons", size=10)
+
     # Set the equal scale and save figure
     ax.set_aspect("equal", "box")
-    fig.savefig(save_path + save_name + image_format, dpi=200)
-    plt.close(fig)
-    ax.clear()
+    #fig.savefig(save_path + save_name + image_format, dpi=200)
+    #plt.close(fig)
+    #ax.clear()
     plt.show()
 
 def plotting_yz(data_list, save_name, X, Y, title, code=0):
@@ -172,17 +180,16 @@ for ax, cte_value, i_grid in zip(constant_axes, constant_values, [0, 1, 2]):
             counts = data_grid[i_grid][column_name]
             error = calculate_relative_error(counts, counts_max_it)
             data.append(error)
-            percentage = 1
+            colorbar = "percentage"
         elif data_type == "absolute":
             counts = data_grid[i_grid][column_name]
             error = calculate_absolute_error(counts, counts_max_it)
             data.append(error)
-            percentage = 0
-        else:
+            colorbar = "counts"
+        elif data_type == "counts":
             counts = data_grid[i_grid][column_name]
             data.append(counts)
-            percentage = 0
-
+            colorbar = "counts"
     save_name = data_type + "_" + plans[i_grid]
     title = 0
 
@@ -190,11 +197,11 @@ for ax, cte_value, i_grid in zip(constant_axes, constant_values, [0, 1, 2]):
     X = data_grid[i_grid]["particle_positions_" + plans[i_grid][0]]
     Y = data_grid[i_grid]["particle_positions_" + plans[i_grid][1]]
     if plans[i_grid] == "yz":
-        plotting_yz(data, save_name, X, Y, title, percentage)
+        plotting_yz(data, save_name, X, Y, title, colorbar)
     elif plans[i_grid] == "xz":
-        plotting_xz(data, save_name, X, Y, title, percentage)
+        plotting_xz(data, save_name, X, Y, title, colorbar)
     else:
-        plotting_xy(data, save_name, X, Y, title, percentage)
+        plotting_xy(data, save_name, X, Y, title, colorbar)
 
 """# Positions in reactor
 fig3d = plt.figure()
@@ -249,7 +256,7 @@ detector = geo.plot_surface(Xd+FP[0], Yd, Zd, alpha=0.5, color="xkcd:black", lab
 
 for i_grid, color in enumerate(["red", "blue", "green"]):
     grid1 = geo.plot(data_grid[i_grid]["particle_positions_x"], data_grid[i_grid]["particle_positions_y"],
-                     data_grid[i_grid]["particle_positions_z"], ".", markersize=10, color=color)
+                     data_grid[i_grid]["particle_positions_z"], ".", markersize=5, color=color)
 
 
 geo.set_xlim(-R,FP[0]+l)
@@ -260,6 +267,12 @@ geo.set_ylabel("Position en y (m)")
 geo.set_zlabel("Position en z (m)")
 world_limits = geo.get_w_lims()
 geo.set_box_aspect((world_limits[1]-world_limits[0],world_limits[3]-world_limits[2],world_limits[5]-world_limits[4]))
+save_name = "geo"
+fig3d.set_size_inches(4.3,4.75)
+# Set the equal scale and save figure
+fig3d.savefig(save_path + save_name + image_format, dpi=200)
+plt.show()"""
 
-plt.show()
-"""
+
+
+
